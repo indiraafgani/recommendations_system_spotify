@@ -9,7 +9,7 @@ import spotipy
 import requests
 from spotipy.oauth2 import SpotifyClientCredentials
 
-st.set_page_config(page_title="Spot Your Vibe", page_icon="🎵", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="SpotYourVibe", page_icon="🎵", layout="wide", initial_sidebar_state="collapsed")
 
 @st.cache_resource
 def init_spotify():
