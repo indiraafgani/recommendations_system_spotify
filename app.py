@@ -560,7 +560,7 @@ if user_id or find_btn:
             art_url   = rec.get("album_art")
 
             if art_url:
-                thumb_html = f'<div class="song-thumb"><img src="{art_url}" alt="{track}"></div>'
+                thumb_html = f'<div class="song-thumb"><img src="{art_url}" alt="{track}" referrerpolicy="no-referrer" crossorigin="anonymous"></div>'
             else:
                 bg    = FALLBACK_BG[i % len(FALLBACK_BG)]
                 emoji = FALLBACK_EMOJI[i % len(FALLBACK_EMOJI)]
