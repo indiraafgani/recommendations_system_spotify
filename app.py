@@ -156,11 +156,11 @@ st.markdown("""
     --yellow-dim:   #f5d96a;
     --yellow-soft:  #fffae8;
 
-    --bg:           #fdf8fc;
-    --bg2:          #f4ecf3;
-    --bg3:          #e8d8e6;
-    --card:         #ffffff;
-    --card-border:  #e2d0e0;
+    --bg:           #fce68f;
+    --bg2:          #f5d96a;
+    --bg3:          #e8c94a;
+    --card:         #fffef0;
+    --card-border:  #e8d460;
     --text-hi:      #1c0a1a;
     --text-mid:     #4a2444;
     --text-lo:      #9a7a94;
@@ -191,7 +191,7 @@ html, body, [class*="css"] {
 
 #MainMenu, footer { visibility: hidden; }
 .block-container {
-    padding: 1.75rem 2.5rem 3rem !important;
+    padding: 3rem 2.5rem 3rem !important;
     max-width: 100% !important;
 }
 
@@ -601,7 +601,7 @@ with st.sidebar:
 
     st.markdown('<div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:rgba(252,230,143,0.65);margin-bottom:10px;">Sample User IDs</div>', unsafe_allow_html=True)
 
-    sample_warm = list(user_id_to_idx.keys())[:5]
+    sample_warm = list(user_id_to_idx.keys())[:3]
     for uid in sample_warm:
         short = uid[:18] + "..."
         if st.button(short, key=f"sidebar_{uid}", use_container_width=True):
@@ -636,7 +636,7 @@ st.markdown("""
 # Greeting
 st.markdown("""
 <div class="greeting">
-    What are we listening to today, <span class="name">Indira</span>? 🎧
+    What are we listening to today? 🎧
 </div>
 """, unsafe_allow_html=True)
 
