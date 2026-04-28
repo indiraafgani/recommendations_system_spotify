@@ -132,6 +132,21 @@ def get_audio_profile(user_id):
     if n>=5 and user_id in user_id_to_idx: return None
     return build_user_profile(user_id, df_cold, item_profiles, audio_features)
 
+def compute_score_pct(recs):
+    """
+    Normalisasi score ke persentase menggunakan min-max normalization.
+    Rekomendasi terbaik = 100%, yang lain proporsional di bawahnya.
+    """
+    scores = [r["score"] for r in recs]
+    min_s  = min(scores)
+    max_s  = max(scores)
+    if max_s == min_s:
+        return {r["rank"]: 100 for r in recs}
+    return {
+        r["rank"]: int((r["score"] - min_s) / (max_s - min_s) * 100)
+        for r in recs
+    }
+
 # ── CSS ──────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -320,8 +335,10 @@ if user_id or find_btn:
             for rec in recs:
                 clean_track = str(rec["trackname"]).split("(")[0].split("-")[0].strip()
                 clean_artist = str(rec["artistname"]).split(",")[0].strip()
-
                 rec["album_art"] = get_album_art_url(clean_track, clean_artist)
+
+        # Hitung score_pct sekali untuk semua rekomendasi (min-max normalization)
+        score_pct_map = compute_score_pct(recs)
 
         if source=="ALS":          bc,bt = "badge-als", f"✦ Collaborative Filtering (ALS) · {n_inter} songs in history"
         elif source=="Hybrid CBF": bc,bt = "badge-cbf", f"◈ Content-Based Hybrid · {n_inter} song(s) in history"
@@ -344,10 +361,10 @@ if user_id or find_btn:
         st.markdown('<div class="section-title">Recommended for You</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="section-sub">Based on {source.lower()} · Top {len(recs)} picks</div>', unsafe_allow_html=True)
 
-        # 3-column cards — use st.container with border styling
+        # 3-column cards
         cols = st.columns(3, gap="medium")
         for i, rec in enumerate(recs[:6]):
-            score_pct = int(rec["score"]*100) if rec["score"]<=1.0 else min(int(rec["score"]/2),100)
+            score_pct = score_pct_map[rec["rank"]]
             track  = rec["trackname"][:30]+("…" if len(rec["trackname"])>30 else "")
             artist = rec["artistname"][:22]+("…" if len(rec["artistname"])>22 else "")
             art    = rec.get("album_art")
@@ -371,7 +388,7 @@ if user_id or find_btn:
 
         with st.expander("See all 10 recommendations"):
             for rec in recs:
-                score_pct = int(rec["score"]*100) if rec["score"]<=1.0 else min(int(rec["score"]/2),100)
+                score_pct = score_pct_map[rec["rank"]]
                 st.markdown(f'<div class="rec-row"><span class="rec-rank">#{rec["rank"]}</span><span class="rec-track">{rec["trackname"]}</span><span class="rec-artist">{rec["artistname"]}</span><span class="rec-score">{score_pct}%</span></div>', unsafe_allow_html=True)
 else:
     st.markdown("""
