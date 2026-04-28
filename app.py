@@ -6,6 +6,7 @@ from scipy.sparse import load_npz
 import implicit
 from sklearn.metrics.pairwise import cosine_similarity
 import spotipy
+import requests
 from spotipy.oauth2 import SpotifyClientCredentials
 
 st.set_page_config(page_title="Spot Your Vibe", page_icon="🎵", layout="wide", initial_sidebar_state="collapsed")
@@ -22,33 +23,31 @@ sp = init_spotify()
 @st.cache_data(ttl=86400)
 def get_album_art_url(trackname, artistname):
     try:
+        # iTunes Search API (lebih stabil untuk cover art)
         query = f"{trackname} {artistname}"
-        result = sp.search(q=query, type="track", limit=10)
+        url = "https://itunes.apple.com/search"
 
-        items = result.get("tracks", {}).get("items", [])
+        params = {
+            "term": query,
+            "media": "music",
+            "entity": "song",
+            "limit": 1
+        }
 
-        if not items:
-            return None
+        response = requests.get(url, params=params, timeout=5)
 
-        best_match = None
+        if response.status_code == 200:
+            data = response.json()
 
-        for item in items:
-            artists = [a["name"].lower() for a in item.get("artists", [])]
+            if data.get("resultCount", 0) > 0:
+                art = data["results"][0].get("artworkUrl100")
 
-            if artistname.lower() in " ".join(artists):
-                best_match = item
-                break
-
-        if best_match is None:
-            best_match = items[0]
-
-        images = best_match.get("album", {}).get("images", [])
-
-        if images:
-            return images[0]["url"]
+                if art:
+                    # Upgrade resolution
+                    return art.replace("100x100", "600x600")
 
     except Exception as e:
-        print("Spotify image error:", e)
+        print("Album art error:", e)
 
     return None
     
