@@ -225,6 +225,15 @@ section[data-testid="stSidebar"] .stButton>button:hover { background:rgba(252,23
 .rec-artist { font-size:12px; color:#7a5a70; }
 .rec-score { font-size:11px; font-weight:700; color:#6c2a5f; min-width:46px; text-align:right; font-family:'Syne',sans-serif; }
 
+/* st.container border = yellow card */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background: #fffbe6 !important;
+    border: 1.5px solid #e8d460 !important;
+    border-radius: 18px !important;
+    padding: 14px !important;
+    box-shadow: 0 2px 12px rgba(108,42,95,0.08) !important;
+}
+
 /* Empty state */
 .empty-state { text-align:center; padding:6rem 2rem 4rem; }
 .empty-icon { font-size:72px; margin-bottom:1.5rem; display:block; }
@@ -300,7 +309,7 @@ if user_id or find_btn:
         st.markdown('<div class="section-title">Recommended for You</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="section-sub">Based on {source.lower()} · Top {len(recs)} picks</div>', unsafe_allow_html=True)
 
-        # 3-column cards — card background kuning lembut, border kuning
+        # 3-column cards — use st.container with border styling
         cols = st.columns(3, gap="medium")
         for i, rec in enumerate(recs[:6]):
             score_pct = int(rec["score"]*100) if rec["score"]<=1.0 else min(int(rec["score"]/2),100)
@@ -309,21 +318,19 @@ if user_id or find_btn:
             art    = rec.get("album_art")
 
             with cols[i%3]:
-                # Kuning card wrapper atas
-                st.markdown('<div style="background:#fffbe6;border:1.5px solid #e8d460;border-radius:18px;padding:14px;box-shadow:0 2px 12px rgba(108,42,95,0.08);">', unsafe_allow_html=True)
-                if art:
-                    st.image(art, use_container_width=True)
-                else:
-                    bg    = FALLBACK_BG[i%len(FALLBACK_BG)]
-                    emoji = FALLBACK_EMOJI[i%len(FALLBACK_EMOJI)]
-                    st.markdown(f'<div style="width:100%;aspect-ratio:1;background:{bg};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:44px;">{emoji}</div>', unsafe_allow_html=True)
-                st.markdown(f'''
-                    <div class="song-title">{track}</div>
-                    <div class="song-artist">{artist}</div>
-                    <div class="match-label">{score_pct}% match</div>
-                    <div class="match-bar-bg"><div class="match-bar-fill" style="width:{score_pct}%"></div></div>
-                ''', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                with st.container(border=True):
+                    if art:
+                        st.image(art, use_container_width=True)
+                    else:
+                        bg    = FALLBACK_BG[i%len(FALLBACK_BG)]
+                        emoji = FALLBACK_EMOJI[i%len(FALLBACK_EMOJI)]
+                        st.markdown(f'<div style="width:100%;aspect-ratio:1;background:{bg};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:44px;">{emoji}</div>', unsafe_allow_html=True)
+                    st.markdown(f'''
+                        <div class="song-title">{track}</div>
+                        <div class="song-artist">{artist}</div>
+                        <div class="match-label">{score_pct}% match</div>
+                        <div class="match-bar-bg"><div class="match-bar-fill" style="width:{score_pct}%"></div></div>
+                    ''', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
