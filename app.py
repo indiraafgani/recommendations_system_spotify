@@ -226,12 +226,16 @@ section[data-testid="stSidebar"] .stButton>button:hover { background:rgba(252,23
 .rec-score { font-size:11px; font-weight:700; color:#6c2a5f; min-width:46px; text-align:right; font-family:'Syne',sans-serif; }
 
 /* st.container border = yellow card */
-[data-testid="stVerticalBlockBorderWrapper"] {
+[data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stVerticalBlockBorderWrapper"] > div,
+[data-testid="stVerticalBlockBorderWrapper"] > div > div {
     background: #fffbe6 !important;
-    border: 1.5px solid #e8d460 !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border: 2px solid #e8d460 !important;
     border-radius: 18px !important;
     padding: 14px !important;
-    box-shadow: 0 2px 12px rgba(108,42,95,0.08) !important;
+    box-shadow: 0 2px 12px rgba(108,42,95,0.10) !important;
 }
 
 /* Empty state */
