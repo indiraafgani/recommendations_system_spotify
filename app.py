@@ -5,7 +5,8 @@ import pandas as pd
 from scipy.sparse import load_npz
 import implicit
 from sklearn.metrics.pairwise import cosine_similarity
-import os
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
 
 # ─────────────────────────────────────────────
 # PAGE CONFIG
@@ -16,6 +17,34 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# ─────────────────────────────────────────────
+# SPOTIFY CLIENT
+# ─────────────────────────────────────────────
+@st.cache_resource
+def init_spotify():
+    return spotipy.Spotify(auth_manager=SpotifyClientCredentials(
+        client_id=st.secrets["SPOTIFY_CLIENT_ID"],
+        client_secret=st.secrets["SPOTIFY_CLIENT_SECRET"]
+    ))
+
+sp = init_spotify()
+
+@st.cache_data(ttl=86400)  # cache 24 jam
+def get_album_art(trackname, artistname):
+    """Fetch album art URL from Spotify. Returns None if not found."""
+    try:
+        q = f"track:{trackname} artist:{artistname}"
+        result = sp.search(q=q, type="track", limit=1)
+        items = result["tracks"]["items"]
+        if items:
+            images = items[0]["album"]["images"]
+            if images:
+                # pakai ukuran medium (index 1) kalau ada, kalau tidak pakai pertama
+                return images[1]["url"] if len(images) > 1 else images[0]["url"]
+    except Exception:
+        pass
+    return None
 
 # ─────────────────────────────────────────────
 # LOAD MODEL & ARTIFACTS
@@ -97,7 +126,6 @@ def recommend_cold_start(user_id, df_user, item_profiles, audio_features, df_all
 
 def get_recommendation(user_id, N=10):
     n_interactions = user_n_interactions.get(user_id, 0)
-
     if user_id not in user_id_to_idx and n_interactions == 0:
         source = "popularity"
         recs   = get_popular_items(df_cold, N=N)
@@ -135,26 +163,21 @@ def get_audio_profile(user_id):
     n_interactions = user_n_interactions.get(user_id, 0)
     if n_interactions >= 5 and user_id in user_id_to_idx:
         return None
-    profile = build_user_profile(user_id, df_cold, item_profiles, audio_features)
-    return profile
+    return build_user_profile(user_id, df_cold, item_profiles, audio_features)
 
 # ─────────────────────────────────────────────
 # CSS
-# Palette: deep purple #6c2a5f + pastel yellow #fce68f
-# Works in both dark and light mode
 # ─────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap');
 
-/* ── PALETTE VARIABLES ── */
 :root {
     --purple:       #6c2a5f;
     --purple-mid:   #8b3a7a;
     --purple-lite:  #b06ba0;
     --yellow:       #fce68f;
     --yellow-dim:   #f5d96a;
-    --yellow-soft:  #fffae8;
 
     --bg:           #fce68f;
     --bg2:          #f5d96a;
@@ -163,12 +186,11 @@ st.markdown("""
     --card-border:  #e8d460;
     --text-hi:      #1c0a1a;
     --text-mid:     #4a2444;
-    --text-lo:      #9a7a94;
+    --text-lo:      #7a5a70;
     --shadow:       rgba(108,42,95,0.10);
     --shadow-md:    rgba(108,42,95,0.18);
 }
 
-/* dark mode */
 [data-theme="dark"] {
     --bg:           #160c14;
     --bg2:          #20111e;
@@ -182,7 +204,6 @@ st.markdown("""
     --shadow-md:    rgba(0,0,0,0.50);
 }
 
-/* ── BASE ── */
 html, body, [class*="css"] {
     font-family: 'DM Sans', sans-serif !important;
     background-color: var(--bg) !important;
@@ -190,27 +211,18 @@ html, body, [class*="css"] {
 }
 
 #MainMenu, footer { visibility: hidden; }
-.block-container {
-    padding: 3rem 2.5rem 3rem !important;
-    max-width: 100% !important;
-}
+.block-container { padding: 3rem 2.5rem 3rem !important; max-width: 100% !important; }
 
-/* ── SIDEBAR ── */
+/* SIDEBAR */
 section[data-testid="stSidebar"] {
     background: linear-gradient(160deg, #6c2a5f 0%, #4a1a42 100%) !important;
     border-right: none !important;
 }
-section[data-testid="stSidebar"] > div {
-    padding: 2rem 1.5rem !important;
-}
+section[data-testid="stSidebar"] > div { padding: 2rem 1.5rem !important; }
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] div,
-section[data-testid="stSidebar"] span {
-    color: var(--yellow) !important;
-}
-section[data-testid="stSidebar"] hr {
-    border-color: rgba(252,230,143,0.25) !important;
-}
+section[data-testid="stSidebar"] span { color: var(--yellow) !important; }
+section[data-testid="stSidebar"] hr { border-color: rgba(252,230,143,0.25) !important; }
 section[data-testid="stSidebar"] .stButton > button {
     background: rgba(252,230,143,0.12) !important;
     border: 1px solid rgba(252,230,143,0.28) !important;
@@ -219,7 +231,6 @@ section[data-testid="stSidebar"] .stButton > button {
     font-size: 11.5px !important;
     border-radius: 8px !important;
     padding: 6px 12px !important;
-    text-align: left !important;
     transition: all 0.18s !important;
 }
 section[data-testid="stSidebar"] .stButton > button:hover {
@@ -228,7 +239,7 @@ section[data-testid="stSidebar"] .stButton > button:hover {
     transform: translateX(3px) !important;
 }
 
-/* ── TEXT INPUT ── */
+/* INPUT */
 .stTextInput > div > div > input {
     background: var(--card) !important;
     border: 2px solid var(--card-border) !important;
@@ -237,19 +248,16 @@ section[data-testid="stSidebar"] .stButton > button:hover {
     font-family: 'DM Sans', sans-serif !important;
     font-size: 14px !important;
     padding: 13px 18px !important;
-    transition: border-color 0.2s, box-shadow 0.2s !important;
     box-shadow: 0 2px 8px var(--shadow) !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
 }
 .stTextInput > div > div > input:focus {
     border-color: var(--purple) !important;
     box-shadow: 0 0 0 4px rgba(108,42,95,0.12) !important;
-    outline: none !important;
 }
-.stTextInput > div > div > input::placeholder {
-    color: var(--text-lo) !important;
-}
+.stTextInput > div > div > input::placeholder { color: var(--text-lo) !important; }
 
-/* ── BUTTON ── */
+/* BUTTON */
 .stButton > button {
     background: linear-gradient(135deg, var(--purple) 0%, var(--purple-mid) 100%) !important;
     color: var(--yellow) !important;
@@ -263,15 +271,9 @@ section[data-testid="stSidebar"] .stButton > button:hover {
     box-shadow: 0 4px 14px var(--shadow-md) !important;
     transition: all 0.2s !important;
 }
-.stButton > button:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 24px var(--shadow-md) !important;
-}
-.stButton > button:active {
-    transform: translateY(0) !important;
-}
+.stButton > button:hover { transform: translateY(-2px) !important; box-shadow: 0 8px 24px var(--shadow-md) !important; }
 
-/* ── EXPANDER ── */
+/* EXPANDER */
 .streamlit-expanderHeader {
     background: var(--card) !important;
     border: 1.5px solid var(--card-border) !important;
@@ -288,289 +290,131 @@ section[data-testid="stSidebar"] .stButton > button:hover {
     padding: 4px 16px 12px !important;
 }
 
-/* ── SPINNER ── */
-.stSpinner > div { color: var(--purple) !important; }
-
-/* ── WARNING ── */
-.stAlert { border-radius: 12px !important; }
-
-/* ── CUSTOM COMPONENTS ── */
-
-/* Header */
+/* HEADER */
 .syv-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 2rem; padding-bottom: 1.5rem;
     border-bottom: 2px solid var(--card-border);
 }
 .syv-logo {
     width: 48px; height: 48px;
     background: linear-gradient(135deg, var(--purple) 0%, var(--purple-mid) 100%);
-    border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 24px;
-    box-shadow: 0 6px 18px var(--shadow-md);
-    flex-shrink: 0;
+    border-radius: 14px; display: flex; align-items: center;
+    justify-content: center; font-size: 24px;
+    box-shadow: 0 6px 18px var(--shadow-md); flex-shrink: 0;
 }
 .syv-brand {
-    font-family: 'Syne', sans-serif;
-    font-size: 28px;
-    font-weight: 800;
-    color: var(--purple);
-    letter-spacing: -0.03em;
-    line-height: 1;
+    font-family: 'Syne', sans-serif; font-size: 28px;
+    font-weight: 800; color: var(--purple); letter-spacing: -0.03em; line-height: 1;
 }
 .syv-tagline {
-    font-size: 11.5px;
-    color: var(--text-lo);
-    margin-top: 4px;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    font-weight: 500;
+    font-size: 11.5px; color: var(--text-lo); margin-top: 4px;
+    letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500;
 }
 
-/* Greeting */
 .greeting {
-    font-family: 'Syne', sans-serif;
-    font-size: 21px;
-    font-weight: 700;
-    color: var(--text-hi);
-    margin-bottom: 1.25rem;
-    line-height: 1.3;
+    font-family: 'Syne', sans-serif; font-size: 21px;
+    font-weight: 700; color: var(--text-hi); margin-bottom: 1.25rem;
 }
-.greeting .name { color: var(--purple); }
 
-/* Model badge */
+/* MODEL BADGE */
 .model-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 6px 16px;
-    border-radius: 99px;
-    font-size: 11.5px;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-    font-family: 'DM Sans', sans-serif;
-    letter-spacing: 0.02em;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 16px; border-radius: 99px; font-size: 11.5px;
+    font-weight: 600; margin-bottom: 1.5rem; font-family: 'DM Sans', sans-serif;
 }
-.badge-als {
-    background: rgba(108,42,95,0.10);
-    color: var(--purple);
-    border: 1.5px solid rgba(108,42,95,0.35);
-}
-.badge-cbf {
-    background: rgba(245,217,106,0.18);
-    color: #6a4a00;
-    border: 1.5px solid var(--yellow-dim);
-}
-.badge-pop {
-    background: rgba(176,107,160,0.12);
-    color: var(--purple-lite);
-    border: 1.5px solid var(--purple-lite);
-}
+.badge-als { background: rgba(108,42,95,0.10); color: var(--purple); border: 1.5px solid rgba(108,42,95,0.35); }
+.badge-cbf { background: rgba(245,217,106,0.18); color: #6a4a00; border: 1.5px solid var(--yellow-dim); }
+.badge-pop { background: rgba(176,107,160,0.12); color: var(--purple-lite); border: 1.5px solid var(--purple-lite); }
 
-/* Panel (audio profile) */
+/* PANEL */
 .panel {
-    background: var(--card);
-    border: 1.5px solid var(--card-border);
-    border-radius: 18px;
-    padding: 20px 22px;
+    background: var(--card); border: 1.5px solid var(--card-border);
+    border-radius: 18px; padding: 20px 22px;
     box-shadow: 0 3px 16px var(--shadow);
 }
 .panel-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-lo);
-    margin-bottom: 18px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+    color: var(--text-lo); margin-bottom: 18px; letter-spacing: 0.08em; text-transform: uppercase;
 }
-
-/* Feature bars */
 .feat-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.feat-label {
-    font-size: 11.5px;
-    color: var(--text-lo);
-    width: 120px;
-    flex-shrink: 0;
-    font-family: 'DM Sans', sans-serif;
-}
-.feat-track {
-    flex: 1;
-    height: 5px;
-    background: var(--bg3);
-    border-radius: 3px;
-    overflow: hidden;
-}
-.feat-fill {
-    height: 100%;
-    border-radius: 3px;
-    background: linear-gradient(90deg, var(--purple) 0%, #c06898 100%);
-}
-.feat-val {
-    font-size: 10.5px;
-    color: var(--text-lo);
-    width: 34px;
-    text-align: right;
-    font-family: 'DM Sans', sans-serif;
-}
+.feat-label { font-size: 11.5px; color: var(--text-lo); width: 120px; flex-shrink: 0; }
+.feat-track { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.feat-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--purple) 0%, #c06898 100%); }
+.feat-val { font-size: 10.5px; color: var(--text-lo); width: 34px; text-align: right; }
 
-/* Section titles */
+/* SECTION */
 .section-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 19px;
-    font-weight: 700;
-    color: var(--text-hi);
-    margin-bottom: 5px;
-    letter-spacing: -0.01em;
+    font-family: 'Syne', sans-serif; font-size: 19px; font-weight: 700;
+    color: var(--text-hi); margin-bottom: 5px;
 }
-.section-sub {
-    font-size: 12px;
-    color: var(--text-lo);
-    margin-bottom: 16px;
-}
+.section-sub { font-size: 12px; color: var(--text-lo); margin-bottom: 16px; }
 
-/* Song cards grid */
+/* SONG CARDS */
 .songs-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-top: 0.5rem;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 0.5rem;
 }
 .song-card {
-    background: var(--card);
-    border: 1.5px solid var(--card-border);
-    border-radius: 18px;
-    padding: 18px;
-    cursor: pointer;
-    transition: all 0.22s ease;
-    box-shadow: 0 2px 10px var(--shadow);
+    background: var(--card); border: 1.5px solid var(--card-border);
+    border-radius: 18px; padding: 16px; cursor: pointer;
+    transition: all 0.22s ease; box-shadow: 0 2px 10px var(--shadow);
     animation: fadeInUp 0.4s ease both;
 }
 .song-card:hover {
-    border-color: var(--purple);
-    transform: translateY(-4px);
+    border-color: var(--purple); transform: translateY(-4px);
     box-shadow: 0 10px 28px var(--shadow-md);
 }
 .song-thumb {
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    margin-bottom: 12px;
+    width: 100%; aspect-ratio: 1; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin-bottom: 12px; overflow: hidden;
+}
+.song-thumb img {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 10px;
 }
 .song-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-hi);
-    margin-bottom: 4px;
-    line-height: 1.35;
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+    color: var(--text-hi); margin-bottom: 4px; line-height: 1.35;
 }
-.song-artist {
-    font-size: 11.5px;
-    color: var(--text-lo);
-    margin-bottom: 12px;
-}
+.song-artist { font-size: 11.5px; color: var(--text-lo); margin-bottom: 12px; }
 .match-label {
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--purple);
-    margin-bottom: 6px;
-    font-family: 'Syne', sans-serif;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    font-size: 10px; font-weight: 700; color: var(--purple);
+    margin-bottom: 6px; font-family: 'Syne', sans-serif;
+    letter-spacing: 0.05em; text-transform: uppercase;
 }
-.match-bar-bg {
-    height: 4px;
-    background: var(--bg3);
-    border-radius: 2px;
-    overflow: hidden;
-}
+.match-bar-bg { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
 .match-bar-fill {
-    height: 100%;
-    border-radius: 2px;
+    height: 100%; border-radius: 2px;
     background: linear-gradient(90deg, var(--purple) 0%, var(--yellow-dim) 100%);
 }
 
-/* Expander list rows */
+/* EXPANDER LIST */
 .rec-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 11px 0;
-    border-bottom: 1px solid var(--card-border);
+    display: flex; align-items: center; gap: 14px;
+    padding: 11px 0; border-bottom: 1px solid var(--card-border);
 }
-.rec-rank {
-    font-family: 'Syne', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-lo);
-    min-width: 26px;
+.rec-thumb {
+    width: 40px; height: 40px; border-radius: 8px;
+    overflow: hidden; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
 }
-.rec-track {
-    font-size: 13px;
-    color: var(--text-hi);
-    flex: 1;
-    font-weight: 500;
-}
-.rec-artist {
-    font-size: 12px;
-    color: var(--text-lo);
-}
-.rec-score {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--purple);
-    min-width: 46px;
-    text-align: right;
-    font-family: 'Syne', sans-serif;
-}
+.rec-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.rec-rank { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; color: var(--text-lo); min-width: 26px; }
+.rec-track { font-size: 13px; color: var(--text-hi); flex: 1; font-weight: 500; }
+.rec-artist { font-size: 12px; color: var(--text-lo); }
+.rec-score { font-size: 11px; font-weight: 700; color: var(--purple); min-width: 46px; text-align: right; font-family: 'Syne', sans-serif; }
 
-/* Empty state */
-.empty-state {
-    text-align: center;
-    padding: 6rem 2rem 4rem;
-}
-.empty-icon {
-    font-size: 72px;
-    margin-bottom: 1.5rem;
-    display: block;
-    filter: drop-shadow(0 4px 16px rgba(108,42,95,0.25));
-}
-.empty-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 26px;
-    font-weight: 800;
-    color: var(--text-hi);
-    margin-bottom: 10px;
-    letter-spacing: -0.02em;
-}
-.empty-desc {
-    font-size: 14px;
-    color: var(--text-lo);
-    line-height: 1.7;
-    max-width: 380px;
-    margin: 0 auto;
-}
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 6rem 2rem 4rem; }
+.empty-icon { font-size: 72px; margin-bottom: 1.5rem; display: block; }
+.empty-title { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; color: var(--text-hi); margin-bottom: 10px; }
+.empty-desc { font-size: 14px; color: var(--text-lo); line-height: 1.7; max-width: 380px; margin: 0 auto; }
 .empty-pill {
-    display: inline-block;
-    background: rgba(108,42,95,0.10);
-    color: var(--purple);
-    border: 1.5px solid rgba(108,42,95,0.25);
-    border-radius: 99px;
-    padding: 6px 18px;
-    font-size: 12px;
-    font-weight: 600;
-    margin-top: 20px;
+    display: inline-block; background: rgba(108,42,95,0.10); color: var(--purple);
+    border: 1.5px solid rgba(108,42,95,0.25); border-radius: 99px;
+    padding: 6px 18px; font-size: 12px; font-weight: 600; margin-top: 20px;
     font-family: 'Syne', sans-serif;
-    letter-spacing: 0.04em;
 }
 
 @keyframes fadeInUp {
@@ -581,19 +425,15 @@ section[data-testid="stSidebar"] .stButton > button:hover {
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# SIDEBAR — sample user IDs only
+# SIDEBAR
 # ─────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
     <div style="margin-bottom:1.25rem;">
         <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;
-                    color:#fce68f;letter-spacing:-0.02em;">
-            Spot Your Vibe
-        </div>
+                    color:#fce68f;letter-spacing:-0.02em;">Spot Your Vibe</div>
         <div style="font-size:11px;color:rgba(252,230,143,0.55);
-                    text-transform:uppercase;letter-spacing:0.09em;margin-top:4px;">
-            Try a sample
-        </div>
+                    text-transform:uppercase;letter-spacing:0.09em;margin-top:4px;">Try a sample</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -608,21 +448,17 @@ with st.sidebar:
             st.session_state.user_id_input = uid
 
     st.markdown("""
-    <div style="margin-top:1.5rem;padding:14px 12px;
-                background:rgba(252,230,143,0.08);
-                border-radius:12px;
-                border:1px solid rgba(252,230,143,0.18);">
+    <div style="margin-top:1.5rem;padding:14px 12px;background:rgba(252,230,143,0.08);
+                border-radius:12px;border:1px solid rgba(252,230,143,0.18);">
         <div style="font-size:11px;color:rgba(252,230,143,0.75);line-height:1.7;">
-            Click any ID above to auto-fill the search box, or paste your own User ID from the dataset.
+            Click any ID above to auto-fill, or paste your own User ID.
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# MAIN CONTENT
+# MAIN
 # ─────────────────────────────────────────────
-
-# App header
 st.markdown("""
 <div class="syv-header">
     <div class="syv-logo">🎵</div>
@@ -633,21 +469,13 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Greeting
-st.markdown("""
-<div class="greeting">
-    What are we listening to today? 🎧
-</div>
-""", unsafe_allow_html=True)
+st.markdown('<div class="greeting">What are we listening to today? 🎧</div>', unsafe_allow_html=True)
 
-# Input row
 col_input, col_btn = st.columns([4, 1])
 with col_input:
     user_id = st.text_input(
-        "",
-        placeholder="Paste a User ID to discover your vibe...",
-        label_visibility="collapsed",
-        key="user_id_input"
+        "", placeholder="Paste a User ID to discover your vibe...",
+        label_visibility="collapsed", key="user_id_input"
     )
 with col_btn:
     find_btn = st.button("Find Vibe ✦", use_container_width=True)
@@ -655,11 +483,12 @@ with col_btn:
 # ─────────────────────────────────────────────
 # RESULTS
 # ─────────────────────────────────────────────
-THUMBS = [
-    ("🎸", "#f8edf6"), ("🎹", "#eee8f8"), ("🎶", "#f8f2e8"),
-    ("🎵", "#e8f0f8"), ("🎼", "#f8e8ee"), ("🎺", "#eaf8e8"),
-    ("🎻", "#f2e8f8"), ("🥁", "#f8f4e8"), ("🎷", "#e8f8f4"), ("🎤", "#f8ece8"),
+FALLBACK_BG = [
+    "#f8edf6", "#eee8f8", "#f8f2e8", "#e8f0f8",
+    "#f8e8ee", "#eaf8e8", "#f2e8f8", "#f8f4e8",
+    "#e8f8f4", "#f8ece8",
 ]
+FALLBACK_EMOJI = ["🎸","🎹","🎶","🎵","🎼","🎺","🎻","🥁","🎷","🎤"]
 
 if user_id or find_btn:
     uid = user_id.strip()
@@ -671,6 +500,14 @@ if user_id or find_btn:
             source  = recs[0]["source"] if recs else "unknown"
             n_inter = user_n_interactions.get(uid, 0)
             profile = get_audio_profile(uid)
+
+            # Fetch album art for top 6 cards
+            for rec in recs[:6]:
+                rec["album_art"] = get_album_art(rec["trackname"], rec["artistname"])
+
+            # Fetch for expander too (remaining 4)
+            for rec in recs[6:]:
+                rec["album_art"] = get_album_art(rec["trackname"], rec["artistname"])
 
         # Model badge
         if source == "ALS":
@@ -685,21 +522,18 @@ if user_id or find_btn:
 
         st.markdown(f'<div class="model-badge {badge_class}">{badge_text}</div>', unsafe_allow_html=True)
 
-        # Audio profile (cold users only, half-width)
+        # Audio profile panel
         if profile is not None:
             display_features = ["danceability", "energy", "acousticness",
                                  "valence", "speechiness", "instrumentalness"]
             feature_indices  = [audio_features.index(f) for f in display_features if f in audio_features]
-
             bars_html = ""
             for i, feat in zip(feature_indices, display_features):
                 val = float(profile[i])
                 bars_html += f"""
                 <div class="feat-row">
                     <span class="feat-label">{feat.capitalize()}</span>
-                    <div class="feat-track">
-                        <div class="feat-fill" style="width:{val*100:.0f}%"></div>
-                    </div>
+                    <div class="feat-track"><div class="feat-fill" style="width:{val*100:.0f}%"></div></div>
                     <span class="feat-val">{val:.2f}</span>
                 </div>"""
 
@@ -712,22 +546,29 @@ if user_id or find_btn:
                 </div>""", unsafe_allow_html=True)
             st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
 
-        # Recommendations
+        # Recommendations grid
         st.markdown('<div class="section-title">Recommended for You</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="section-sub">Based on {source.lower()} · Top {len(recs)} picks for this user</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-sub">Based on {source.lower()} · Top {len(recs)} picks</div>', unsafe_allow_html=True)
 
         cards_html = '<div class="songs-grid">'
         for i, rec in enumerate(recs[:6]):
             score_raw = rec["score"]
             score_pct = int(score_raw * 100) if score_raw <= 1.0 else min(int(score_raw / 2), 100)
-            emoji, bg  = THUMBS[i % len(THUMBS)]
-            delay      = i * 0.07
-            track      = rec["trackname"][:30] + ("…" if len(rec["trackname"]) > 30 else "")
-            artist     = rec["artistname"][:22] + ("…" if len(rec["artistname"]) > 22 else "")
+            delay     = i * 0.07
+            track     = rec["trackname"][:30] + ("…" if len(rec["trackname"]) > 30 else "")
+            artist    = rec["artistname"][:22] + ("…" if len(rec["artistname"]) > 22 else "")
+            art_url   = rec.get("album_art")
+
+            if art_url:
+                thumb_html = f'<div class="song-thumb"><img src="{art_url}" alt="{track}"></div>'
+            else:
+                bg    = FALLBACK_BG[i % len(FALLBACK_BG)]
+                emoji = FALLBACK_EMOJI[i % len(FALLBACK_EMOJI)]
+                thumb_html = f'<div class="song-thumb" style="background:{bg};">{emoji}</div>'
 
             cards_html += f"""
             <div class="song-card" style="animation-delay:{delay}s">
-                <div class="song-thumb" style="background:{bg};">{emoji}</div>
+                {thumb_html}
                 <div class="song-title">{track}</div>
                 <div class="song-artist">{artist}</div>
                 <div class="match-label">{score_pct}% match</div>
@@ -741,28 +582,38 @@ if user_id or find_btn:
 
         st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
-        # Full list
+        # Full list expander
         with st.expander("See all 10 recommendations"):
             for rec in recs:
                 score_raw = rec["score"]
                 score_pct = int(score_raw * 100) if score_raw <= 1.0 else min(int(score_raw / 2), 100)
+                art_url   = rec.get("album_art")
+                i         = rec["rank"] - 1
+
+                if art_url:
+                    thumb_html = f'<div class="rec-thumb"><img src="{art_url}" alt=""></div>'
+                else:
+                    bg    = FALLBACK_BG[i % len(FALLBACK_BG)]
+                    emoji = FALLBACK_EMOJI[i % len(FALLBACK_EMOJI)]
+                    thumb_html = f'<div class="rec-thumb" style="background:{bg};">{emoji}</div>'
+
                 st.markdown(f"""
                 <div class="rec-row">
                     <span class="rec-rank">#{rec['rank']}</span>
+                    {thumb_html}
                     <span class="rec-track">{rec['trackname']}</span>
                     <span class="rec-artist">{rec['artistname']}</span>
                     <span class="rec-score">{score_pct}%</span>
                 </div>""", unsafe_allow_html=True)
 
 else:
-    # Empty state
     st.markdown("""
     <div class="empty-state">
         <span class="empty-icon">🎵</span>
         <div class="empty-title">What's your vibe today?</div>
         <div class="empty-desc">
             Enter a User ID to discover songs that match your listening soul.
-            Open the sidebar to try a sample user and see the magic.
+            Open the sidebar to try a sample user.
         </div>
         <div class="empty-pill">← Open sidebar for sample IDs</div>
     </div>
