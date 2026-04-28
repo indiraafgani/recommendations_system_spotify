@@ -270,8 +270,8 @@ section[data-testid="stSidebar"] .stButton>button:hover { background:rgba(252,23
 with st.sidebar:
     st.markdown("""
     <div style="margin-bottom:1.25rem;">
-        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#fce68f;letter-spacing:-0.02em;">Spot Your Vibe</div>
-        <div style="font-size:11px;color:rgba(252,230,143,0.55);text-transform:uppercase;letter-spacing:0.09em;margin-top:4px;">Try a sample</div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#fce68f;letter-spacing:-0.02em;">SpotYourVibe</div>
+        <div style="font-size:11px;color:rgba(252,230,143,0.55);text-transform:uppercase;letter-spacing:0.09em;margin-top:4px;">Here are some samples you should try:</div>
     </div>
     """, unsafe_allow_html=True)
     st.divider()
@@ -286,7 +286,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 # ── MAIN ──────────────────────────────────────────────────────────
-st.markdown('<div class="syv-header"><div class="syv-logo">🎵</div><div><div class="syv-brand">Spot Your Vibe</div><div class="syv-tagline">AI-Powered Music Recommendations</div></div></div>', unsafe_allow_html=True)
+st.markdown('<div class="syv-header"><div class="syv-logo">🎵</div><div><div class="syv-brand">SpotYourVibe</div><div class="syv-tagline">AI-Powered Music Recommendations</div></div></div>', unsafe_allow_html=True)
 st.markdown('<div class="greeting">What are we listening to today? 🎧</div>', unsafe_allow_html=True)
 
 c1, c2 = st.columns([4,1])
