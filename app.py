@@ -22,34 +22,36 @@ sp = init_spotify()
 @st.cache_data(ttl=86400)
 def get_album_art_url(trackname, artistname):
     try:
-        # Search lebih fleksibel
         query = f"{trackname} {artistname}"
-        result = sp.search(q=query, type="track", limit=5)
+        result = sp.search(q=query, type="track", limit=10)
 
         items = result.get("tracks", {}).get("items", [])
 
-        # Cari hasil paling relevan
+        if not items:
+            return None
+
+        best_match = None
+
         for item in items:
-            spotify_track = item.get("name", "").lower()
-            spotify_artist = item["artists"][0]["name"].lower() if item.get("artists") else ""
+            artists = [a["name"].lower() for a in item.get("artists", [])]
 
-            if trackname.lower() in spotify_track or artistname.lower() in spotify_artist:
-                images = item.get("album", {}).get("images", [])
-                if images:
-                    # Ambil medium image kalau ada
-                    return images[1]["url"] if len(images) > 1 else images[0]["url"]
+            if artistname.lower() in " ".join(artists):
+                best_match = item
+                break
 
-        # Fallback ke hasil pertama
-        if items:
-            images = items[0].get("album", {}).get("images", [])
-            if images:
-                return images[1]["url"] if len(images) > 1 else images[0]["url"]
+        if best_match is None:
+            best_match = items[0]
+
+        images = best_match.get("album", {}).get("images", [])
+
+        if images:
+            return images[0]["url"]
 
     except Exception as e:
-        return None
+        print("Spotify image error:", e)
 
     return None
-
+    
 @st.cache_resource
 def load_model():
     als = implicit.cpu.als.AlternatingLeastSquares.load("recommendation_model/als_model.npz")
@@ -308,7 +310,10 @@ if user_id or find_btn:
             n_inter = user_n_interactions.get(uid, 0)
             profile = get_audio_profile(uid)
             for rec in recs:
-                rec["album_art"] = get_album_art_url(rec["trackname"], rec["artistname"])
+                clean_track = str(rec["trackname"]).split("(")[0].split("-")[0].strip()
+                clean_artist = str(rec["artistname"]).split(",")[0].strip()
+
+                rec["album_art"] = get_album_art_url(clean_track, clean_artist)
 
         if source=="ALS":          bc,bt = "badge-als", f"✦ Collaborative Filtering (ALS) · {n_inter} songs in history"
         elif source=="Hybrid CBF": bc,bt = "badge-cbf", f"◈ Content-Based Hybrid · {n_inter} song(s) in history"
