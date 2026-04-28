@@ -271,7 +271,7 @@ with st.sidebar:
     st.markdown("""
     <div style="margin-bottom:1.25rem;">
         <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#fce68f;letter-spacing:-0.02em;">SpotYourVibe</div>
-        <div style="font-size:11px;color:rgba(252,230,143,0.55);text-transform:uppercase;letter-spacing:0.09em;margin-top:4px;">Here are some samples you should try:</div>
+        <div style="font-size:11px;color:rgba(252,230,143,0.55);text-transform:uppercase;letter-spacing:0.09em;margin-top:4px;">Not sure where to start? Try these</div>
     </div>
     """, unsafe_allow_html=True)
     st.divider()
