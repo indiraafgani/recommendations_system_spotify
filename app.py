@@ -22,14 +22,32 @@ sp = init_spotify()
 @st.cache_data(ttl=86400)
 def get_album_art_url(trackname, artistname):
     try:
-        result = sp.search(q=f"track:{trackname} artist:{artistname}", type="track", limit=1)
-        items = result["tracks"]["items"]
+        # Search lebih fleksibel
+        query = f"{trackname} {artistname}"
+        result = sp.search(q=query, type="track", limit=5)
+
+        items = result.get("tracks", {}).get("items", [])
+
+        # Cari hasil paling relevan
+        for item in items:
+            spotify_track = item.get("name", "").lower()
+            spotify_artist = item["artists"][0]["name"].lower() if item.get("artists") else ""
+
+            if trackname.lower() in spotify_track or artistname.lower() in spotify_artist:
+                images = item.get("album", {}).get("images", [])
+                if images:
+                    # Ambil medium image kalau ada
+                    return images[1]["url"] if len(images) > 1 else images[0]["url"]
+
+        # Fallback ke hasil pertama
         if items:
-            images = items[0]["album"]["images"]
+            images = items[0].get("album", {}).get("images", [])
             if images:
                 return images[1]["url"] if len(images) > 1 else images[0]["url"]
-    except Exception:
-        pass
+
+    except Exception as e:
+        return None
+
     return None
 
 @st.cache_resource
