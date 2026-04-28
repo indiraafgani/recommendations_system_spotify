@@ -279,6 +279,15 @@ with st.sidebar:
     for uid in list(user_id_to_idx.keys())[:3]:
         if st.button(uid[:18]+"...", key=f"sb_{uid}", use_container_width=True):
             st.session_state.user_id_input = uid
+    with st.expander("About User IDs"):
+        st.markdown("""
+        **User IDs in this app come from the training dataset**
+        
+        • Click one of the sample IDs above  
+        • Or enter another dataset User ID if available  
+        
+        *These may not match public Spotify usernames.*
+        """)
     st.markdown("""
     <div style="margin-top:1.5rem;padding:14px 12px;background:rgba(252,230,143,0.08);border-radius:12px;border:1px solid rgba(252,230,143,0.18);">
         <div style="font-size:11px;color:rgba(252,230,143,0.75);line-height:1.7;">Click any ID above to auto-fill, or paste your own User ID.</div>
@@ -291,7 +300,7 @@ st.markdown('<div class="greeting">What are we listening to today? 🎧</div>', 
 
 c1, c2 = st.columns([4,1])
 with c1:
-    user_id = st.text_input("", placeholder="Paste a User ID to discover your vibe...", label_visibility="collapsed", key="user_id_input")
+    user_id = st.text_input("", placeholder="Paste a dataset User ID or try a sample user...", label_visibility="collapsed", key="user_id_input")
 with c2:
     find_btn = st.button("Find Vibe ✦", use_container_width=True)
 
