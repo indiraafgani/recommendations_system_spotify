@@ -140,8 +140,11 @@ streamlit run app.py
 
 ## 👤 Author
 
+**Indurasmi Dian M.**
+**Khaerun Nisa'tri Safaati**
 **Indira Faisa Afgani**
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/indira-faisa-afgani-886548218)
+**Mutiara Ayu Alzahra Ramadhani**
 
 ---
 
